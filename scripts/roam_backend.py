@@ -77,9 +77,8 @@ class RoamBackendClient:
         error_class = error_map.get(resp.status_code, lambda: RoamAPIError(f"Unknown error: {resp.status_code}"))
         raise error_class()
 
-    @lru_cache(maxsize=128)
     def call(self, path: str, method: str, body: Dict[str, Any]) -> requests.Response:
-        """Make API call with automatic redirect handling and caching"""
+        """Make API call with automatic redirect handling"""
         url, method, headers = self.__make_request(path, body, method)
         resp = self.__session.post(url, headers=headers, json=body, allow_redirects=False)
         
@@ -285,9 +284,17 @@ def delete_block(client: RoamBackendClient, body: Dict[str, Any]) -> int:
     resp = client.call(path, 'POST', validated_body)
     return resp.status_code
 
-def create_page(client: RoamBackendClient, body: Dict[str, Any]) -> int:
+def create_page(client: RoamBackendClient, title: Union[str, Dict[str, Any]]) -> int:
     """Create a new page with validation"""
-    body['action'] = 'create-page'
+    if isinstance(title, str):
+        body = {
+            'action': 'create-page',
+            'page': {'title': title}
+        }
+    else:
+        body = title.copy()
+        body['action'] = 'create-page'
+        
     schema = Schema({'action': 'create-page', 'page': {
         SchemaOptional('uid'): And(str, len),
         'title': And(str, len),
